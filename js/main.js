@@ -103,8 +103,7 @@ define([
             .attr('height', height)
             .call(zoom);
 
-        // ohlcData = mockData.generateOHLC(fromDate, toDate);
-        // console.log("mock data");
+        // ohlcData = mockData.generateOHLC(fromDate, toDate);        
 
         console.log('data');
         console.log(ohlcData);
