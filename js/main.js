@@ -57,6 +57,8 @@ define([
 
     var ohlcData;
     var lineData = [];
+    var triggerData = [];
+    var arrowSize = 20;
 
     var isFromZero = false;
     
@@ -108,17 +110,21 @@ define([
         console.log('data');
         console.log(ohlcData);
         console.log(lineData);
+        console.log(triggerData);
+        console.log('end data');
 
         // Set scale domains
         xScale.domain(d3.extent(ohlcData, function (d) {
             return d.date;
         }));
 
-        var rangeData = getRangeData(lineData);
-        console.log('rangeData');
-        console.log(rangeData);
+        var rangeLineData = getRangeData(lineData);        
 
-        var min_max_obj = getMinMaxValue(ohlcData, rangeData);   
+        var rangeTriggerData = getRangeData(triggerData);
+        console.log('rangeData');
+        console.log(rangeTriggerData);
+
+        var min_max_obj = getMinMaxValue(ohlcData, rangeLineData, rangeTriggerData);   
 
         console.log('min max data');
         console.log(min_max_obj);
@@ -127,7 +133,7 @@ define([
         yScale.domain(
             [
                 min_max_obj.min,
-                min_max_obj.max
+                min_max_obj.max + arrowSize + 20
             ]
         );
 
@@ -148,7 +154,7 @@ define([
 
         // yScale.domain([0, 300]);
         if(isFromZero) {
-            yScale.domain([0, min_max_obj.max]);    
+            yScale.domain([0, min_max_obj.max + arrowSize + 20]);    
         }
 
         zoom.x(xScale);
@@ -164,7 +170,7 @@ define([
             .attr('class', 'y axis')
             .call(yAxis);
 
-        // Draw series.
+        // Draw ohlc series.
         seriesSvg.append('g')
             .attr('class', 'series')
             .datum(ohlcData)
@@ -174,89 +180,8 @@ define([
         zoomend();
 
 
-        // draw line graph
-        // lineData = [
-        //     {
-        //         "color": "#7CFC00",
-        //         "data": [
-        //             {
-        //                 "value": 50.0,
-        //                 "date": "2018-02-17",
-        //                 "id": 1,
-        //                 "filterx": "line1"
-        //             },
-        //             {
-        //                 "value": 55.0,
-        //                 "date": "2018-02-16",
-        //                 "id": 2,
-        //                 "filterx": "line1"
-        //             },
-        //             {
-        //                 "value": 60.0,
-        //                 "date": "2018-02-15",
-        //                 "id": 3,
-        //                 "filterx": "line1"
-        //             },
-        //             {
-        //                 "value": 80.0,
-        //                 "date": "2018-02-14",
-        //                 "id": 4,
-        //                 "filterx": "line1"
-        //             },
-        //             {
-        //                 "value": 50.0,
-        //                 "date": "2018-02-13",
-        //                 "id": 5,
-        //                 "filterx": "line1"
-        //             }
-        //         ],
-        //         "type": "drawLine"
-        //     },
-        //      {
-        //         "color": "#00BFFF",
-        //         "data": [
-        //             {
-        //                 "value": 110.0,
-        //                 "date": "2018-02-17",
-        //                 "id": 6,
-        //                 "filterx": "line2"
-        //             },
-        //             {
-        //                 "value": 110.0,
-        //                 "date": "2018-02-16",
-        //                 "id": 7,
-        //                 "filterx": "line2"
-        //             },
-        //             {
-        //                 "value": 150.0,
-        //                 "date": "2018-02-15",
-        //                 "id": 8,
-        //                 "filterx": "line2"
-        //             },
-        //             {
-        //                 "value": 100.0,
-        //                 "date": "2018-02-14",
-        //                 "id": 9,
-        //                 "filterx": "line2"
-        //             },
-        //             {
-        //                 "value": 100.0,
-        //                 "date": "2018-02-13",
-        //                 "id": 10,
-        //                 "filterx": "line2"
-        //             }
-        //         ],
-        //         "type": "drawLine"
-        //     }
-        // ];
-
-        // for(var i=0; i < lineData.length; i++) {
-        //     lineData[i].data.forEach(function(element) {
-        //         element.date = new Date(element.date);
-        //         // console.log(element);
-        //     });
-        // }
-
+        
+        // Draw lines
         lineData = lineData.map(function (ele, idx) {
             return {
                 name: "Series " + (idx + 1) ,
@@ -275,9 +200,56 @@ define([
 
         
 
+        // Draw triggers
+        seriesSvg.append('g').attr("class","trigger-layer");
+        drawTriggers();     
+        
+            
+
+        
+
     }
 
-    function getMinMaxValue(ohlcData, lineData) {
+    function drawTriggers() {
+        for(var i=0; i < triggerData.length; i++) {
+            var color = triggerData[i].color;
+            var fontSize = triggerData[i]['text-size'];
+            var trigger = d3.select(".trigger-layer").append("g").selectAll('.trigger')            
+                .data(triggerData[i].data)
+                .enter().append('g')
+                .classed('trigger', true);
+
+            var arrow = trigger.append("g").classed("arrow", true);
+            arrow.append('svg:image')
+                .attr("x", function(d) { return xScale(d.date) - arrowSize/2; })
+                .attr("y", function(d) {
+                    if(d.direction == 'up') return yScale(d.value); 
+                    else return yScale(d.value + arrowSize);                      
+                 })
+                .attr("xlink:href", function(d) { 
+                    if(d.direction == 'up') return 'up' + color.substring(1) + '.png';
+                    else return 'down' + color.substring(1) + '.png';
+                })
+                .attr("fill", color)
+                .attr("width", arrowSize)
+                .attr("height", arrowSize);                
+
+                  
+            trigger.append("text")
+                .attr("class", "trigger-label")                    
+                .attr("x", function(d) { return xScale(d.date); })
+                .attr("y", function(d) { 
+                    if(d.direction == 'up') return yScale(d.value - arrowSize -8); 
+                    else return yScale(d.value + arrowSize + 5);                                          
+                })
+                .attr("font-size", fontSize)
+                .attr("fill", color)
+                .text(function(d) { return d.text; });
+
+        }   
+    }
+
+    function getMinMaxValue(ohlcData, lineData, triggerData) {
         var min_ohlc = d3.min(ohlcData, function (d) {
                     return d.low;
                 });
@@ -294,16 +266,31 @@ define([
             var max_line = d3.max(lineData, function (d) {
                     return d;
                 });    
-
-            return {
-                min: Math.min(min_ohlc, min_line),
-                max: Math.max(max_ohlc, max_line)
-            }        
+                    
         } else {
-            return {
-                min: min_ohlc,
-                max: max_ohlc
-            }        
+            var min_line = min_ohlc + 100;
+
+            var max_line = max_ohlc - 100;            
+        }
+
+        if(triggerData.length > 0) {
+            var min_trigger = d3.min(triggerData, function (d) {
+                    return d;
+                });
+
+            var max_trigger = d3.max(triggerData, function (d) {
+                    return d;
+                });    
+                    
+        } else {
+            var min_trigger = min_ohlc + 100;
+
+            var max_trigger = max_ohlc - 100;
+        }        
+
+        return {
+            min: Math.min(min_ohlc, min_line, min_trigger),
+            max: Math.max(max_ohlc, max_line, max_trigger)
         }
         
     }
@@ -357,30 +344,32 @@ define([
                 });
             });
         }
+
+        var rangeTriggerData = [];
+
+        if(triggerData.length > 0) {
+            triggerData.forEach(function(ele) {            
+                ele.data.forEach(function(sub) {
+                    if (range.contains(sub.date)) {
+                        rangeTriggerData.push(sub.value);
+                    }                
+                });
+            });
+        }
         
 
-        var min_max_obj = getMinMaxValue(rangeData, rangeLineData);   
-
-        // yScale.domain(
-        //     [
-        //         d3.min(rangeData, function (d) {
-        //             return d.low;
-        //         }),
-        //         d3.max(rangeData, function (d) {
-        //             return d.high;
-        //         })
-        //     ]
-        // );
+        var min_max_obj = getMinMaxValue(rangeData, rangeLineData, rangeTriggerData);   
+        
 
         yScale.domain(
             [
                 min_max_obj.min,
-                min_max_obj.max
+                min_max_obj.max + arrowSize + 20
             ]
         );
 
         if(isFromZero) {
-            yScale.domain([0, min_max_obj.max]);    
+            yScale.domain([0, min_max_obj.max + arrowSize + 20]);    
         }
 
         g.select('.x.axis')
@@ -425,6 +414,12 @@ define([
             .call(line_series);
         // end zoom function for line graph
 
+        //add zoom function for trigger 
+        seriesDiv.select('.trigger-layer').selectAll("*").remove();
+        drawTriggers();             
+
+        //// end zoom function for trigger
+
         seriesDiv = document.getElementById('series-container');
         seriesDiv.style.webkitTransform = nullTransform;
         seriesDiv.style.MozTransform = nullTransform;
@@ -465,6 +460,16 @@ define([
                             lineData.push(data[prop]);
                         }
                     }
+
+                    if(data[prop].type == "drawTrigger") {                
+                        if((data[prop].data) && (data[prop].data.length > 0)) {        
+                            data[prop].data.forEach(function(element) {
+                                element.date = new Date(element.date);
+                                // console.log(element);
+                            });
+                            triggerData.push(data[prop]);
+                        }
+                    }
                 }
 
                 updateChart(isFromZero);               
@@ -482,7 +487,7 @@ define([
     }
 
     $(function() {        
-        var url1 = 'http://185.194.141.182:8000/error/?format=json';
+        var url1 = 'http://185.194.141.182:8000/error/?format=json';        
         var url2 = 'http://185.194.141.182:8000/?format=json';
         fetchData(url2);
         
