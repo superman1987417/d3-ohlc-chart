@@ -234,20 +234,38 @@ define([
                 .attr("width", arrowSize)
                 .attr("height", arrowSize);                
 
-                  
+                  // d.text.lenght/2*fontSize
             trigger.append("text")
                 .attr("class", "trigger-label")                    
-                .attr("x", function(d) { return xScale(d.date); })
-                .attr("y", function(d) { 
-                    if(d.direction == 'up') return yScale(d.value - arrowSize -8); 
+                .attr("x", function(d) {                    
+                    var size = textSize(d.text, fontSize);              
+                    console.log(size);
+                    return xScale(d.date) - size.width/2; })
+                .attr("y", function(d) {                     
+                    var size = textSize(d.text, fontSize);
+                    if(d.direction == 'up') return yScale(d.value) + arrowSize + size.height - 2; 
                     else return yScale(d.value + arrowSize + 5);                                          
                 })
                 .attr("font-size", fontSize)
                 .attr("fill", color)
                 .text(function(d) { return d.text; });
 
+
+
+
         }   
     }
+
+    function textSize(text, font) {
+        if (!d3) return;
+        var container = d3.select('body').append('svg');
+        container.append('text').attr({ x: -99999, y: -99999 }).attr("font-size", font).text(text);
+        var size = container.node().getBBox();
+        container.remove();
+        return { width: size.width, height: size.height };
+    }
+
+
 
     function getMinMaxValue(ohlcData, lineData, triggerData) {
         var min_ohlc = d3.min(ohlcData, function (d) {
