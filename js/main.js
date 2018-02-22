@@ -59,6 +59,8 @@ define([
     var lineData = [];
     var triggerData = [];
     var arrowSize = 20;
+    var dy_max = 20;  // extra space for displaying trigger label on the top of y axis
+    var dy_min = 30;    // extra space for displaying trigger label on the bottom of y axis
 
     var isFromZero = false;
     
@@ -128,14 +130,28 @@ define([
 
         console.log('min max data');
         console.log(min_max_obj);
+
+        var min_line = d3.min(rangeTriggerData, function (d) {
+                    return d;
+                });
+
+        var max_line = d3.max(rangeTriggerData, function (d) {
+                return d;
+            });
         
+        var yMax = (max_line + (arrowSize + dy_max) * min_max_obj.max/height) > min_max_obj.max ? min_max_obj.max * (1 + (arrowSize + dy_max)/height) : min_max_obj.max;
+        var yMin = (min_line - (arrowSize + dy_min) * min_max_obj.max/height) < min_max_obj.min ? min_max_obj.min - min_max_obj.max * (arrowSize + dy_min)/height : min_max_obj.min;
 
         yScale.domain(
-            [
-                min_max_obj.min,
-                min_max_obj.max + arrowSize + 20
+            [                
+                yMin,
+                yMax
             ]
         );
+
+        console.log("range");
+        console.log(yScale.domain());
+
 
         // yScale.domain(
         //     [
@@ -154,7 +170,7 @@ define([
 
         // yScale.domain([0, 300]);
         if(isFromZero) {
-            yScale.domain([0, min_max_obj.max + arrowSize + 20]);    
+            yScale.domain([0, yMax]);    
         }
 
         zoom.x(xScale);
@@ -203,11 +219,16 @@ define([
         // Draw triggers
         seriesSvg.append('g').attr("class","trigger-layer");
         drawTriggers();     
-        
-            
+    }
 
-        
-
+    function genPath(w, h, points) {
+        var path = "";
+        points.forEach(function(point, idx) {            
+            if(idx == 0) path += "M" + point[0]*w  + " " + point[1]*h;
+            else path += " L" + point[0]*w  + " " + point[1]*h;
+        })
+        path += " Z";
+        return path;
     }
 
     function drawTriggers() {
@@ -220,21 +241,47 @@ define([
                 .classed('trigger', true);
 
             var arrow = trigger.append("g").classed("arrow", true);
-            arrow.append('svg:image')
-                .attr("x", function(d) { return xScale(d.date) - arrowSize/2; })
-                .attr("y", function(d) {
-                    if(d.direction == 'up') return yScale(d.value); 
-                    else return yScale(d.value + arrowSize);                      
-                 })
-                .attr("xlink:href", function(d) { 
-                    if(d.direction == 'up') return 'up' + color.substring(1) + '.png';
-                    else return 'down' + color.substring(1) + '.png';
-                })
-                .attr("fill", color)
-                .attr("width", arrowSize)
-                .attr("height", arrowSize);                
+            // arrow.append('svg:image')
+            //     .attr("x", function(d) { return xScale(d.date) - arrowSize/2; })
+            //     .attr("y", function(d) {
+            //         if(d.direction == 'up') return yScale(d.value); 
+            //         else return yScale(d.value + arrowSize);                      
+            //      })
+            //     .attr("xlink:href", function(d) { 
+            //         if(d.direction == 'up') return 'up' + color.substring(1) + '.png';
+            //         else return 'down' + color.substring(1) + '.png';
+            //     })
+            //     .attr("fill", color)
+            //     .attr("width", arrowSize)
+            //     .attr("height", arrowSize);
 
-                  // d.text.lenght/2*fontSize
+            // draw path for arrow
+            var w = 20, h = 20;
+            var points = [
+                [0.5, 0], [1, 0.4], [0.7, 0.4], [0.7, 1],
+                [0.3, 1.0], [0.3, 0.4], [0, 0.4]
+            ];
+            
+            arrow
+                .append("path")
+                .attr("transform", function(d) {                    
+                    if(d.direction == 'down') return "rotate(180)"; 
+                    else return  "rotate(0)"; 
+                    
+                })
+                .attr("class", "arrow-path")                
+                .style("fill", color)            
+                .attr('d', genPath(w, h, points));                
+
+            arrow.attr("transform", function(d) {
+                    if(d.direction == 'up') return "translate(" + (xScale(d.date) - arrowSize/2) + "," + yScale(d.value) + ")"; 
+                    else return "translate(" + (xScale(d.date) - arrowSize/2 + w) + "," + yScale(d.value) + ")"; 
+                    
+                })
+
+            // end path
+
+                  
             trigger.append("text")
                 .attr("class", "trigger-label")                    
                 .attr("x", function(d) {                    
@@ -243,15 +290,12 @@ define([
                     return xScale(d.date) - size.width/2; })
                 .attr("y", function(d) {                     
                     var size = textSize(d.text, fontSize);
-                    if(d.direction == 'up') return yScale(d.value) + arrowSize + size.height - 2; 
-                    else return yScale(d.value + arrowSize + 5);                                          
+                    if(d.direction == 'up') return yScale(d.value) + arrowSize + size.height - 1; 
+                    else return yScale(d.value) - arrowSize - 5;                                          
                 })
                 .attr("font-size", fontSize)
                 .attr("fill", color)
                 .text(function(d) { return d.text; });
-
-
-
 
         }   
     }
@@ -377,17 +421,27 @@ define([
         
 
         var min_max_obj = getMinMaxValue(rangeData, rangeLineData, rangeTriggerData);   
+
+        var min_line = d3.min(rangeTriggerData, function (d) {
+                    return d;
+                });
+
+        var max_line = d3.max(rangeTriggerData, function (d) {
+                return d;
+            });
         
+        var yMax = (max_line + (arrowSize + dy_max) * min_max_obj.max/height) > min_max_obj.max ? min_max_obj.max * (1 + (arrowSize + dy_max)/height) : min_max_obj.max;
+        var yMin = (min_line - (arrowSize + dy_min) * min_max_obj.max/height) < min_max_obj.min ? min_max_obj.min - min_max_obj.max * (arrowSize + dy_min)/height : min_max_obj.min;
 
         yScale.domain(
-            [
-                min_max_obj.min,
-                min_max_obj.max + arrowSize + 20
+            [                
+                yMin,
+                yMax
             ]
         );
 
         if(isFromZero) {
-            yScale.domain([0, min_max_obj.max + arrowSize + 20]);    
+            yScale.domain([0, yMax]);    
         }
 
         g.select('.x.axis')
